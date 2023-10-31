@@ -32,26 +32,6 @@ def load(ckpt_dir):
     return jax.tree_util.tree_unflatten(treedef, flat_state)
 
 
-# class SelfAttention(hk.MultiHeadAttention):
-#     """Self attention with a causal mask applied."""
-
-#     def __call__(
-#             self,
-#             query: jnp.ndarray,
-#             key: Optional[jnp.ndarray] = None,
-#             value: Optional[jnp.ndarray] = None,
-#             mask: Optional[jnp.ndarray] = None,
-#     ) -> jnp.ndarray:
-#         key = key if key is not None else query
-#         value = value if value is not None else query
-
-#         seq_len = query.shape[1]
-#         causal_mask = np.tril(np.ones((seq_len, seq_len)))
-#         mask = mask * causal_mask if mask is not None else causal_mask
-
-#         return super().__call__(query, key, value, mask)
-
-
 class MLP(hk.Module):
     def __init__(self, hidden_units, name=None):
         super().__init__(name=name)
@@ -137,35 +117,15 @@ class ActionHeadClassification(hk.Module):
         self.eps = norm_eps
         
     def __call__(self, x, labels, weights, is_training=False):
-        # L, P = feat.shape
-        # x = feat.mean(axis=1)
-        # L, J, P = feat.shape
-        # x = feat.reshape(-1, 2, J, P)
-        # x = np.mean(feat, axis=1)
-        # x = hk.Linear(64)(feat)
-        # x = jax.nn.relu(x)
-        # # x = x.reshape(-1, 2, J, 17, 3)
-        # # x = feat.reshape(feat.shape[0], -1)
+
         x = hk.LayerNorm(axis=-1, create_scale=True, create_offset=True, eps=self.eps)(x)
         x = hk.Flatten()(x)
         if is_training: 
             x = hk.dropout(hk.next_rng_key(), 0.5, x)
         x = MLP(hidden_units=[4096, 2048])(x, is_training)
-        # x = hk.Linear(2048)(x)
-        # x = jax.nn.relu(x)
-        # x = jnp.transpose(x, (0, 1, 3, 4, 2))
-        # x = x.mean(axis=-1)
-        # x = x.reshape(*x.shape[:2], -1)
-        # x = x.mean(axis=1)
-        # x = hk.Linear(self.hidden_dim, name='ClassLin2')(x)
-        # x = hk.BatchNorm(create_offset=True, 
-        #                  create_scale=True, 
-        #                  decay_rate=0.9)(x, is_training=training)
-        # x = jax.nn.relu(x)
+
         cls_logits = hk.Linear(self.num_classes, name='ClassLin3')(x)
-        # classifier_loss = focal_loss(num_classes=self.num_classes)(labels, cls_logits)
-        # classifier_loss = jnp.mean(cross_entropy_loss(labels, cls_logits, weights, None))
-        # classifier_loss = jnp.mean(smoothed_loss(labels, cls_logits, self.num_classes, 0.))
+
         classifier_loss = jnp.mean(optax_cross_entropy_loss(labels, cls_logits, self.num_classes))
         return cls_logits, classifier_loss
 

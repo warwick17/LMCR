@@ -151,15 +151,7 @@ class ImageClassification:
         }), self.args)
         params, st = self.forward.init(key, dummy_input)
 
-        # self.optim = optax.chain(
-        #     optax.adaptive_grad_clip(self.args['grad_clip_value']),
-        #     # optax.sgd(learning_rate=learning_rate, momentum=0.99, nesterov=True),
-        #     #optax.scale_by_radam(b1=0.9, eps=1e-4),
-        #     optax.scale_by_adam(),
-        #     # optax.scale_by_yogi(),
-        #     # optax.scale_by_schedule(scheduler),
-        #     optax.scale(-self.args['lr'])
-        # )
+
         self.optim = optax.adamw(learning_rate=self.args['lr'], weight_decay=self.args['wd'])
         # self.optim = optax.adam(learning_rate=self.args['lr'])
         # self.optim = optax.adamw(learning_rate=lr_logic, weight_decay=self.args['wd'])
@@ -274,76 +266,3 @@ class PartialImageClassification:
         return states, model_output
 
 
-
-
-# def create_forward_classifier(fns, args):
-#    def fwd_pass(input, is_training=True):
-#         encoder_outputs, labels, weights = input
-
-#         logits, classifier_loss = fns['ActionHeadClassification'](**args)(encoder_outputs, labels, weights, is_training)
-
-#         return classifier_loss, dict({
-#             'classif_loss': classifier_loss,
-#             'logits': logits
-#         })
-
-#    return hk.transform_with_state(fwd_pass)
-
-
-# class Classifier:
-#     def __init__(self, arguments):
-#         self.args = arguments
-        
-#     def init_params(self, rng, dummy_input):
-#         key, sub = jax.random.split(rng, num=2)
-
-#         self.forward = create_forward_classifier(dict({
-#             'ActionHeadClassification': ActionHeadClassification
-#         }), self.args)
-#         params, state = self.forward.init(key, dummy_input)
-
-#         lr_logic = optax.sgdr_schedule(
-#             [{"init_value":0.0003, "peak_value":0.0004, "decay_steps":1000, "warmup_steps":100, "end_value":0.0002},
-#             {"init_value":0.0002, "peak_value":0.0003, "decay_steps":1000, "warmup_steps":100, "end_value":0.0001},
-#             {"init_value":0.0001, "peak_value":0.0002, "decay_steps":1000, "warmup_steps":100, "end_value":0.00005},
-#             ]
-#         )
-
-#         self.optim = optax.adamw(learning_rate=lr_logic, weight_decay=self.args['wd'])
-#         # self.optim = optax.adam(learning_rate=self.args['lr'])
-#         optim_params = self.optim.init(params)
-
-#         states = dict({
-#             'params': params,
-#             'state': state,
-#             'optim': optim_params,
-#             'key': sub
-#         })
-
-#         return states
-
-#     @functools.partial(jax.jit, static_argnums=0)
-#     def update_params(self, states, patches):
-#         key, sub = jax.random.split(states['key'], num=2)
-
-
-#         def adapt_forward(params, state, key, data):
-#             # Pack model output and state together.
-#             (loss, model_output), state = self.forward.apply(params, state, key, data, is_training=True)
-#             return loss, (model_output, state)
-#         grads, (model_output, state) = (jax.grad(adapt_forward, has_aux=True)(states['params'], states['state'], key, patches))
-
-
-#         # (loss, model_output), grads = jax.value_and_grad(self.forward.apply, has_aux=True)(states['params'], key, patches)
-
-#         updates, opt_state = self.optim.update(grads, states['optim'], states['params'])
-#         params = optax.apply_updates(states['params'], updates)
-
-#         states = dict({
-#             'params': params,
-#             'state': state,
-#             'optim': opt_state,
-#             'key': sub
-#         })
-
-#         return states, model_output
